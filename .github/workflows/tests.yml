@@ -1,0 +1,36 @@
+name: Tests
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+jobs:
+  phpunit:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up PHP 8.2 and Composer 2
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: pdo_sqlite, sqlite3, mbstring, dom, simplexml, xml, xmlwriter, curl, zip, fileinfo
+          tools: composer:v2
+          coverage: none
+          fail-fast: true
+
+      - name: Prepare Laravel runtime directories
+        run: |
+          mkdir -p storage/app/public storage/framework/cache/data storage/framework/sessions storage/framework/testing storage/framework/views storage/logs bootstrap/cache
+          chmod -R u+rwX storage bootstrap/cache
+
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Run PHPUnit
+        run: php vendor/bin/phpunit --configuration phpunit.xml --do-not-cache-result
