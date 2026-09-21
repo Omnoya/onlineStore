@@ -38,6 +38,21 @@ class CartController extends Controller
             'quantity' => ['required', 'integer', 'min:1'],
         ]);
 
+        $product = Product::findOrFail($id);
+        $stock = (int) $product->getStock();
+
+        if ($stock === 0) {
+            return back()->withErrors([
+                'quantity' => 'This product is out of stock.',
+            ])->withInput();
+        }
+
+        if ($validated['quantity'] > $stock) {
+            return back()->withErrors([
+                'quantity' => 'The requested quantity exceeds the available stock.',
+            ])->withInput();
+        }
+
         $products = $request->session()->get("products");
         $products[$id] = $validated['quantity'];
         $request->session()->put('products', $products);

@@ -44,9 +44,9 @@ class CartValidationTest extends TestCase
         ];
     }
 
-    public function test_a_positive_integer_quantity_is_added_to_the_cart(): void
+    public function test_a_quantity_equal_to_the_available_stock_is_added_to_the_cart(): void
     {
-        $product = $this->createProduct();
+        $product = $this->createProduct(2);
 
         $response = $this->post(
             route('cart.add', ['id' => $product->getId()]),
@@ -57,13 +57,44 @@ class CartValidationTest extends TestCase
         $this->assertSame(2, session('products', [])[$product->getId()] ?? null);
     }
 
-    private function createProduct(): Product
+    /**
+     * @dataProvider unavailableStockCases
+     */
+    public function test_an_unavailable_quantity_is_rejected_without_modifying_the_cart(
+        int $stock,
+        int $quantity
+    ): void
+    {
+        $product = $this->createProduct($stock);
+        $existingProducts = [999 => 4];
+
+        $response = $this
+            ->withSession(['products' => $existingProducts])
+            ->post(
+                route('cart.add', ['id' => $product->getId()]),
+                ['quantity' => $quantity]
+            );
+
+        $response->assertSessionHasErrors('quantity');
+        $this->assertSame($existingProducts, session('products'));
+    }
+
+    public static function unavailableStockCases(): array
+    {
+        return [
+            'quantity exceeds stock' => [2, 3],
+            'product is out of stock' => [0, 1],
+        ];
+    }
+
+    private function createProduct(int $stock = 10): Product
     {
         $product = new Product();
         $product->setName('Test product');
         $product->setDescription('Product created for cart validation testing.');
         $product->setImage('test-product.png');
         $product->setPrice(100);
+        $product->setStock($stock);
         $product->save();
 
         return $product;

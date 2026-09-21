@@ -18,6 +18,8 @@
         {{-- <p class="card-text">{{ $viewData["product"]["description"] }}</p> --}}
         <p class="card-text">{{ $viewData["product"]->getDescription() }}</p>
         {{-- <p class="card-text"><small class="text-muted">Add to Cart</small></p> --}}
+        @if ($viewData["product"]->getStock() > 0)
+        <p class="card-text text-muted">Available stock: {{ $viewData["product"]->getStock() }}</p>
         <p class="card-text">
           <form method="POST" action="{{ route('cart.add', ['id'=> $viewData['product']->getId()]) }}">
             <div class="row">
@@ -25,7 +27,8 @@
             <div class="col-auto">
                 <div class="input-group col-auto">
                 <div class="input-group-text">Quantity</div>
-                <input type="number" min="1" max="10" class="form-control quantity-input" name="quantity" value="1">
+                <input type="number" min="1" max="{{ $viewData['product']->getStock() }}" step="1"
+                  class="form-control quantity-input" name="quantity" value="1">
                 </div>
             </div>
             <div class="col-auto">
@@ -34,6 +37,10 @@
             </div>
           </form>
         </p>
+        @else
+        <p class="card-text text-danger">Out of stock</p>
+        <button class="btn bg-primary text-white" type="button" disabled>Add to cart</button>
+        @endif
       </div>
     </div>
   </div>
