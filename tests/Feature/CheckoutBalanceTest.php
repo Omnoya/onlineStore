@@ -17,6 +17,7 @@ class CheckoutBalanceTest extends TestCase
     public function test_a_user_cannot_purchase_a_cart_that_exceeds_their_balance(): void
     {
         $initialBalance = 100;
+        $checkoutToken = '550e8400-e29b-41d4-a716-446655440000';
 
         $user = new User();
         $user->setName('Test customer');
@@ -41,17 +42,21 @@ class CheckoutBalanceTest extends TestCase
             ->actingAs($user)
             ->withSession([
                 'products' => [$product->getId() => 1],
+                'checkout_token' => $checkoutToken,
             ])
-            ->post(route('cart.purchase'));
+            ->post(route('cart.purchase'), ['checkout_token' => $checkoutToken]);
 
         $this->assertSame($orderCountBeforeCheckout, Order::count());
         $this->assertSame($itemCountBeforeCheckout, Item::count());
         $this->assertSame($initialBalance, (int) $user->fresh()->getBalance());
         $response->assertSessionHas("products.{$product->getId()}", 1);
+        $response->assertSessionHas('checkout_token', $checkoutToken);
     }
 
     public function test_a_user_can_purchase_a_cart_within_their_balance(): void
     {
+        $checkoutToken = '550e8400-e29b-41d4-a716-446655440000';
+
         $user = new User();
         $user->setName('Test customer with sufficient balance');
         $user->setEmail('funded-customer@example.com');
@@ -72,8 +77,9 @@ class CheckoutBalanceTest extends TestCase
             ->actingAs($user)
             ->withSession([
                 'products' => [$product->getId() => 1],
+                'checkout_token' => $checkoutToken,
             ])
-            ->post(route('cart.purchase'));
+            ->post(route('cart.purchase'), ['checkout_token' => $checkoutToken]);
 
         $this->assertSame(1, Order::where('user_id', $user->getId())->count());
 
@@ -89,5 +95,6 @@ class CheckoutBalanceTest extends TestCase
 
         $this->assertSame(50, (int) $user->fresh()->getBalance());
         $response->assertSessionMissing('products');
+        $response->assertSessionMissing('checkout_token');
     }
 }

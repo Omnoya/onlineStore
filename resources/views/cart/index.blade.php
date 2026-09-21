@@ -33,6 +33,7 @@
         @if (count($viewData["products"]) > 0)
           <form action="{{ route('cart.purchase') }}" method="POST" class="d-inline">
             @csrf
+            <input type="hidden" name="checkout_token" value="{{ session('checkout_token') }}">
             <button type="submit" class="btn bg-primary text-white mb-2">Purchase</button>
           </form>
           <form action="{{ route('cart.delete') }}" method="POST" class="d-inline">

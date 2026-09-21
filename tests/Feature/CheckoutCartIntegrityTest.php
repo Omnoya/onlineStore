@@ -17,6 +17,7 @@ class CheckoutCartIntegrityTest extends TestCase
     public function test_checkout_rejects_a_cart_containing_a_missing_product(): void
     {
         $initialBalance = 200;
+        $checkoutToken = '550e8400-e29b-41d4-a716-446655440000';
 
         $user = new User();
         $user->setName('Cart integrity test customer');
@@ -44,8 +45,9 @@ class CheckoutCartIntegrityTest extends TestCase
                     $product->getId() => 1,
                     $missingProductId => 1,
                 ],
+                'checkout_token' => $checkoutToken,
             ])
-            ->post(route('cart.purchase'));
+            ->post(route('cart.purchase'), ['checkout_token' => $checkoutToken]);
 
         $this->assertSame(0, Order::count());
         $this->assertSame(0, Item::count());
@@ -53,5 +55,6 @@ class CheckoutCartIntegrityTest extends TestCase
         $response->assertSessionHas('products');
         $response->assertSessionHas("products.{$product->getId()}", 1);
         $response->assertSessionHas("products.{$missingProductId}", 1);
+        $response->assertSessionHas('checkout_token', $checkoutToken);
     }
 }

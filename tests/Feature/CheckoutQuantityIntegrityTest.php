@@ -20,6 +20,7 @@ class CheckoutQuantityIntegrityTest extends TestCase
     public function test_checkout_rejects_an_invalid_quantity_stored_in_the_session(mixed $quantity): void
     {
         $initialBalance = 200;
+        $checkoutToken = '550e8400-e29b-41d4-a716-446655440000';
 
         $user = new User();
         $user->setName('Quantity integrity test customer');
@@ -40,8 +41,9 @@ class CheckoutQuantityIntegrityTest extends TestCase
             ->actingAs($user)
             ->withSession([
                 'products' => [$product->getId() => $quantity],
+                'checkout_token' => $checkoutToken,
             ])
-            ->post(route('cart.purchase'));
+            ->post(route('cart.purchase'), ['checkout_token' => $checkoutToken]);
 
         $this->assertSame(0, Order::count());
         $this->assertSame(0, Item::count());
@@ -51,6 +53,7 @@ class CheckoutQuantityIntegrityTest extends TestCase
         $this->assertIsArray($productsInSession);
         $this->assertArrayHasKey($product->getId(), $productsInSession);
         $this->assertSame($quantity, $productsInSession[$product->getId()]);
+        $this->assertSame($checkoutToken, session('checkout_token'));
     }
 
     public static function invalidQuantities(): array

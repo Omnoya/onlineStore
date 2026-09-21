@@ -19,6 +19,7 @@ class CheckoutTransactionTest extends TestCase
     {
         $initialBalance = 200;
         $initialStock = 5;
+        $checkoutToken = '550e8400-e29b-41d4-a716-446655440000';
 
         $user = new User();
         $user->setName('Transaction test customer');
@@ -49,8 +50,9 @@ class CheckoutTransactionTest extends TestCase
                 ->actingAs($user)
                 ->withSession([
                     'products' => [$product->getId() => 1],
+                    'checkout_token' => $checkoutToken,
                 ])
-                ->post(route('cart.purchase'));
+                ->post(route('cart.purchase'), ['checkout_token' => $checkoutToken]);
 
             $this->fail('The forced item creation failure was not thrown.');
         } catch (RuntimeException $exception) {
@@ -64,5 +66,6 @@ class CheckoutTransactionTest extends TestCase
         $this->assertSame($initialBalance, (int) $user->fresh()->getBalance());
         $this->assertSame($initialStock, (int) $product->fresh()->getStock());
         $this->assertSame(1, session("products.{$product->getId()}"));
+        $this->assertSame($checkoutToken, session('checkout_token'));
     }
 }

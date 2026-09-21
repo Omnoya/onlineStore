@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 
 class CartController extends Controller
 {
@@ -20,8 +21,14 @@ class CartController extends Controller
 
         $productsInSession = $request->session()->get("products");
         if ($productsInSession) {
+            if (!$request->session()->has('checkout_token')) {
+                $request->session()->put('checkout_token', (string) Str::uuid());
+            }
+
             $productsInCart = Product::findMany(array_keys($productsInSession));
             $total = Product::sumPricesByQuantities($productsInCart, $productsInSession);
+        } else {
+            $request->session()->forget('checkout_token');
         }
 
         $viewData = [];
@@ -53,21 +60,62 @@ class CartController extends Controller
             ])->withInput();
         }
 
-        $products = $request->session()->get("products");
+        $products = $request->session()->get("products", []);
+        $cartChanged = !array_key_exists($id, $products)
+            || (int) $products[$id] !== (int) $validated['quantity'];
+
         $products[$id] = $validated['quantity'];
         $request->session()->put('products', $products);
+
+        if ($cartChanged) {
+            $request->session()->forget('checkout_token');
+        }
 
         return redirect()->route('cart.index');
     }
 
     public function delete(Request $request)
     {
-        $request->session()->forget('products');
+        $request->session()->forget(['products', 'checkout_token']);
         return back();
     }
 
     public function purchase(Request $request)
     {
+        $tokenValidator = Validator::make(
+            $request->only('checkout_token'),
+            ['checkout_token' => ['required', 'uuid']]
+        );
+
+        if ($tokenValidator->fails()) {
+            return redirect()
+                ->route('cart.index')
+                ->with('error', 'The checkout token is invalid.');
+        }
+
+        $checkoutToken = $tokenValidator->validated()['checkout_token'];
+        $userId = Auth::id();
+
+        $existingOrder = Order::query()
+            ->where('user_id', $userId)
+            ->where('checkout_token', $checkoutToken)
+            ->first();
+
+        if ($existingOrder) {
+            if ($request->session()->get('checkout_token') === $checkoutToken) {
+                $request->session()->forget(['products', 'checkout_token']);
+            }
+
+            return $this->purchaseConfirmation($existingOrder);
+        }
+
+        $sessionCheckoutToken = $request->session()->get('checkout_token');
+        if (!is_string($sessionCheckoutToken) || !hash_equals($sessionCheckoutToken, $checkoutToken)) {
+            return redirect()
+                ->route('cart.index')
+                ->with('error', 'The checkout token does not match the current cart.');
+        }
+
         $productsInSession = $request->session()->get("products");
 
         $validator = Validator::make(
@@ -86,13 +134,30 @@ class CartController extends Controller
 
         if ($productsInSession) {
             $productIds = array_keys($productsInSession);
-            $userId = Auth::id();
 
-            $checkout = DB::transaction(function () use ($productIds, $productsInSession, $userId) {
+            $checkout = DB::transaction(function () use (
+                $productIds,
+                $productsInSession,
+                $userId,
+                $checkoutToken
+            ) {
                 $user = User::query()
                     ->whereKey($userId)
                     ->lockForUpdate()
                     ->firstOrFail();
+
+                $existingOrder = Order::query()
+                    ->where('user_id', $user->getId())
+                    ->where('checkout_token', $checkoutToken)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($existingOrder) {
+                    return [
+                        'status' => 'replay',
+                        'order' => $existingOrder,
+                    ];
+                }
 
                 $productsInCart = Product::query()
                     ->whereIn('id', $productIds)
@@ -121,6 +186,7 @@ class CartController extends Controller
 
                 $order = new Order();
                 $order->setUserId($user->getId());
+                $order->setCheckoutToken($checkoutToken);
                 $order->setTotal(0);
                 $order->save();
 
@@ -171,15 +237,20 @@ class CartController extends Controller
             }
 
             $order = $checkout['order'];
-            $request->session()->forget('products');
+            $request->session()->forget(['products', 'checkout_token']);
 
-            $viewData = [];
-            $viewData["title"] = "Purchase - Online Store";
-            $viewData["subtitle"] =  "Purchase Status";
-            $viewData["order"] =  $order;
-            return view('cart.purchase')->with("viewData", $viewData);
+            return $this->purchaseConfirmation($order);
         } else {
             return redirect()->route('cart.index');
         }
+    }
+
+    private function purchaseConfirmation(Order $order)
+    {
+        $viewData = [];
+        $viewData["title"] = "Purchase - Online Store";
+        $viewData["subtitle"] =  "Purchase Status";
+        $viewData["order"] =  $order;
+        return view('cart.purchase')->with("viewData", $viewData);
     }
 }

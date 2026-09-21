@@ -13,6 +13,7 @@ class Order extends Model
      * $this->attributes['id'] - int - contains the order primary key (id)
      * $this->attributes['total'] - int - contains the order total
      * $this->attributes['user_id'] - int - contains the referenced user id
+     * $this->attributes['checkout_token'] - string|null - contains the checkout idempotency token
      * $this->attributes['created_at'] - timestamp - contains the order creation date
      * $this->attributes['updated_at'] - timestamp - contains the order update date
      * $this->user - User - contains the associated User
@@ -55,6 +56,16 @@ class Order extends Model
     public function setUserId($userId)
     {
         $this->attributes['user_id'] = $userId;
+    }
+
+    public function getCheckoutToken()
+    {
+        return $this->attributes['checkout_token'];
+    }
+
+    public function setCheckoutToken($checkoutToken)
+    {
+        $this->attributes['checkout_token'] = $checkoutToken;
     }
 
     public function getCreatedAt()

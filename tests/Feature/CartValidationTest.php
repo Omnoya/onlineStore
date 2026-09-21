@@ -46,15 +46,19 @@ class CartValidationTest extends TestCase
 
     public function test_a_quantity_equal_to_the_available_stock_is_added_to_the_cart(): void
     {
+        $checkoutToken = '550e8400-e29b-41d4-a716-446655440000';
         $product = $this->createProduct(2);
 
-        $response = $this->post(
-            route('cart.add', ['id' => $product->getId()]),
-            ['quantity' => 2]
-        );
+        $response = $this
+            ->withSession(['checkout_token' => $checkoutToken])
+            ->post(
+                route('cart.add', ['id' => $product->getId()]),
+                ['quantity' => 2]
+            );
 
         $response->assertSessionDoesntHaveErrors(['quantity']);
         $this->assertSame(2, session('products', [])[$product->getId()] ?? null);
+        $response->assertSessionMissing('checkout_token');
     }
 
     /**
@@ -67,9 +71,13 @@ class CartValidationTest extends TestCase
     {
         $product = $this->createProduct($stock);
         $existingProducts = [999 => 4];
+        $checkoutToken = '550e8400-e29b-41d4-a716-446655440000';
 
         $response = $this
-            ->withSession(['products' => $existingProducts])
+            ->withSession([
+                'products' => $existingProducts,
+                'checkout_token' => $checkoutToken,
+            ])
             ->post(
                 route('cart.add', ['id' => $product->getId()]),
                 ['quantity' => $quantity]
@@ -77,6 +85,7 @@ class CartValidationTest extends TestCase
 
         $response->assertSessionHasErrors('quantity');
         $this->assertSame($existingProducts, session('products'));
+        $response->assertSessionHas('checkout_token', $checkoutToken);
     }
 
     public static function unavailableStockCases(): array

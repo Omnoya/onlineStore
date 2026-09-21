@@ -18,6 +18,7 @@ class CheckoutStaleBalanceTest extends TestCase
     {
         $initialBalance = 200;
         $databaseBalance = 100;
+        $checkoutToken = '550e8400-e29b-41d4-a716-446655440000';
 
         $user = new User();
         $user->setName('Stale balance test customer');
@@ -48,8 +49,9 @@ class CheckoutStaleBalanceTest extends TestCase
         $response = $this
             ->withSession([
                 'products' => [$product->getId() => 1],
+                'checkout_token' => $checkoutToken,
             ])
-            ->post(route('cart.purchase'));
+            ->post(route('cart.purchase'), ['checkout_token' => $checkoutToken]);
 
         $this->assertSame(0, Order::count());
         $this->assertSame(0, Item::count());
@@ -58,5 +60,6 @@ class CheckoutStaleBalanceTest extends TestCase
             (int) User::query()->findOrFail($user->getId())->getBalance()
         );
         $response->assertSessionHas("products.{$product->getId()}", 1);
+        $response->assertSessionHas('checkout_token', $checkoutToken);
     }
 }
