@@ -8,6 +8,7 @@ use App\Models\Item;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 
 class CartController extends Controller
 {
@@ -52,6 +53,21 @@ class CartController extends Controller
     public function purchase(Request $request)
     {
         $productsInSession = $request->session()->get("products");
+
+        $validator = Validator::make(
+            ['products' => $productsInSession],
+            [
+                'products' => ['required', 'array', 'min:1'],
+                'products.*' => ['required', 'integer', 'min:1'],
+            ]
+        );
+
+        if ($validator->fails()) {
+            return redirect()
+                ->route('cart.index')
+                ->with('error', 'The cart contains invalid quantities.');
+        }
+
         if ($productsInSession) {
             $productIds = array_keys($productsInSession);
             $productsInCart = Product::findMany($productIds);
