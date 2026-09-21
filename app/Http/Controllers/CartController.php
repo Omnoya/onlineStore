@@ -53,7 +53,15 @@ class CartController extends Controller
     {
         $productsInSession = $request->session()->get("products");
         if ($productsInSession) {
-            $productsInCart = Product::findMany(array_keys($productsInSession));
+            $productIds = array_keys($productsInSession);
+            $productsInCart = Product::findMany($productIds);
+
+            if (count(array_unique($productIds)) !== $productsInCart->count()) {
+                return redirect()
+                    ->route('cart.index')
+                    ->with('error', 'One or more products are no longer available.');
+            }
+
             $total = Product::sumPricesByQuantities($productsInCart, $productsInSession);
             $user = Auth::user();
 
