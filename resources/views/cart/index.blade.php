@@ -35,11 +35,13 @@
             @csrf
             <button type="submit" class="btn bg-primary text-white mb-2">Purchase</button>
           </form>
-          <a href="{{ route('cart.delete') }}">
-            <button class="btn btn-danger mb-2">
+          <form action="{{ route('cart.delete') }}" method="POST" class="d-inline">
+            @csrf
+            @method('DELETE')
+            <button type="submit" class="btn btn-danger mb-2">
               Remove all products from Cart
             </button>
-          </a>
+          </form>
         @endif
       </div>
     </div>
