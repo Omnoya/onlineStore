@@ -52,14 +52,22 @@ class CartController extends Controller
     {
         $productsInSession = $request->session()->get("products");
         if ($productsInSession) {
-            $userId = Auth::user()->getId();
+            $productsInCart = Product::findMany(array_keys($productsInSession));
+            $total = Product::sumPricesByQuantities($productsInCart, $productsInSession);
+            $user = Auth::user();
+
+            if ($total > $user->getBalance()) {
+                return redirect()
+                    ->route('cart.index')
+                    ->with('error', 'Insufficient balance.');
+            }
+
+            $userId = $user->getId();
             $order = new Order();
             $order->setUserId($userId);
             $order->setTotal(0);
             $order->save();
 
-            $total = 0;
-            $productsInCart = Product::findMany(array_keys($productsInSession));
             foreach ($productsInCart as $product) {
                 $quantity = $productsInSession[$product->getId()];
                 $item = new Item();
@@ -68,14 +76,13 @@ class CartController extends Controller
                 $item->setProductId($product->getId());
                 $item->setOrderId($order->getId());
                 $item->save();
-                $total = $total + ($product->getPrice()*$quantity);
             }
             $order->setTotal($total);
             $order->save();
 
-            $newBalance = Auth::user()->getBalance() - $total;
-            Auth::user()->setBalance($newBalance);
-            Auth::user()->save();
+            $newBalance = $user->getBalance() - $total;
+            $user->setBalance($newBalance);
+            $user->save();
 
             $request->session()->forget('products');
 
