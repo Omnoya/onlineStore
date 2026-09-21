@@ -7,6 +7,7 @@ use App\Models\Order;
 use App\Models\Item;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class CartController extends Controller
 {
@@ -62,27 +63,30 @@ class CartController extends Controller
                     ->with('error', 'Insufficient balance.');
             }
 
-            $userId = $user->getId();
-            $order = new Order();
-            $order->setUserId($userId);
-            $order->setTotal(0);
-            $order->save();
+            $order = DB::transaction(function () use ($productsInCart, $productsInSession, $total, $user) {
+                $order = new Order();
+                $order->setUserId($user->getId());
+                $order->setTotal(0);
+                $order->save();
 
-            foreach ($productsInCart as $product) {
-                $quantity = $productsInSession[$product->getId()];
-                $item = new Item();
-                $item->setQuantity($quantity);
-                $item->setPrice($product->getPrice());
-                $item->setProductId($product->getId());
-                $item->setOrderId($order->getId());
-                $item->save();
-            }
-            $order->setTotal($total);
-            $order->save();
+                foreach ($productsInCart as $product) {
+                    $quantity = $productsInSession[$product->getId()];
+                    $item = new Item();
+                    $item->setQuantity($quantity);
+                    $item->setPrice($product->getPrice());
+                    $item->setProductId($product->getId());
+                    $item->setOrderId($order->getId());
+                    $item->save();
+                }
+                $order->setTotal($total);
+                $order->save();
 
-            $newBalance = $user->getBalance() - $total;
-            $user->setBalance($newBalance);
-            $user->save();
+                $newBalance = $user->getBalance() - $total;
+                $user->setBalance($newBalance);
+                $user->save();
+
+                return $order;
+            });
 
             $request->session()->forget('products');
 
