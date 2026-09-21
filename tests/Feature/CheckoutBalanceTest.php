@@ -41,7 +41,7 @@ class CheckoutBalanceTest extends TestCase
             ->withSession([
                 'products' => [$product->getId() => 1],
             ])
-            ->get(route('cart.purchase'));
+            ->post(route('cart.purchase'));
 
         $this->assertSame($orderCountBeforeCheckout, Order::count());
         $this->assertSame($itemCountBeforeCheckout, Item::count());
@@ -71,7 +71,7 @@ class CheckoutBalanceTest extends TestCase
             ->withSession([
                 'products' => [$product->getId() => 1],
             ])
-            ->get(route('cart.purchase'));
+            ->post(route('cart.purchase'));
 
         $this->assertSame(1, Order::where('user_id', $user->getId())->count());
 

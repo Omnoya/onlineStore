@@ -48,7 +48,7 @@ class CheckoutTransactionTest extends TestCase
                 ->withSession([
                     'products' => [$product->getId() => 1],
                 ])
-                ->get(route('cart.purchase'));
+                ->post(route('cart.purchase'));
 
             $this->fail('The forced item creation failure was not thrown.');
         } catch (RuntimeException $exception) {

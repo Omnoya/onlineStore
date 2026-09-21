@@ -41,7 +41,7 @@ class CheckoutQuantityIntegrityTest extends TestCase
             ->withSession([
                 'products' => [$product->getId() => $quantity],
             ])
-            ->get(route('cart.purchase'));
+            ->post(route('cart.purchase'));
 
         $this->assertSame(0, Order::count());
         $this->assertSame(0, Item::count());
