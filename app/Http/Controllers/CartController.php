@@ -31,8 +31,12 @@ class CartController extends Controller
 
     public function add(Request $request, $id)
     {
+        $validated = $request->validate([
+            'quantity' => ['required', 'integer', 'min:1'],
+        ]);
+
         $products = $request->session()->get("products");
-        $products[$id] = $request->input('quantity');
+        $products[$id] = $validated['quantity'];
         $request->session()->put('products', $products);
 
         return redirect()->route('cart.index');
