@@ -86,31 +86,53 @@ class CartController extends Controller
 
         if ($productsInSession) {
             $productIds = array_keys($productsInSession);
-            $productsInCart = Product::findMany($productIds);
-
-            if (count(array_unique($productIds)) !== $productsInCart->count()) {
-                return redirect()
-                    ->route('cart.index')
-                    ->with('error', 'One or more products are no longer available.');
-            }
-
-            $total = Product::sumPricesByQuantities($productsInCart, $productsInSession);
             $userId = Auth::id();
 
-            $order = DB::transaction(function () use ($productsInCart, $productsInSession, $total, $userId) {
+            $checkout = DB::transaction(function () use ($productIds, $productsInSession, $userId) {
                 $user = User::query()
                     ->whereKey($userId)
                     ->lockForUpdate()
                     ->firstOrFail();
 
+                $productsInCart = Product::query()
+                    ->whereIn('id', $productIds)
+                    ->orderBy('id')
+                    ->lockForUpdate()
+                    ->get();
+
+                if (count(array_unique($productIds)) !== $productsInCart->count()) {
+                    return ['status' => 'missing_product'];
+                }
+
+                $total = 0;
+                foreach ($productsInCart as $product) {
+                    $quantity = $productsInSession[$product->getId()];
+
+                    if ($quantity > $product->getStock()) {
+                        return ['status' => 'insufficient_stock'];
+                    }
+
+                    $total = $total + ($product->getPrice() * $quantity);
+                }
+
                 if ($total > $user->getBalance()) {
-                    return null;
+                    return ['status' => 'insufficient_balance'];
                 }
 
                 $order = new Order();
                 $order->setUserId($user->getId());
                 $order->setTotal(0);
                 $order->save();
+
+                foreach ($productsInCart as $product) {
+                    $quantity = $productsInSession[$product->getId()];
+                    $product->setStock($product->getStock() - $quantity);
+                    $product->save();
+                }
+
+                $newBalance = $user->getBalance() - $total;
+                $user->setBalance($newBalance);
+                $user->save();
 
                 foreach ($productsInCart as $product) {
                     $quantity = $productsInSession[$product->getId()];
@@ -124,19 +146,31 @@ class CartController extends Controller
                 $order->setTotal($total);
                 $order->save();
 
-                $newBalance = $user->getBalance() - $total;
-                $user->setBalance($newBalance);
-                $user->save();
-
-                return $order;
+                return [
+                    'status' => 'success',
+                    'order' => $order,
+                ];
             });
 
-            if ($order === null) {
+            if ($checkout['status'] === 'missing_product') {
+                return redirect()
+                    ->route('cart.index')
+                    ->with('error', 'One or more products are no longer available.');
+            }
+
+            if ($checkout['status'] === 'insufficient_stock') {
+                return redirect()
+                    ->route('cart.index')
+                    ->with('error', 'One or more products do not have sufficient stock.');
+            }
+
+            if ($checkout['status'] === 'insufficient_balance') {
                 return redirect()
                     ->route('cart.index')
                     ->with('error', 'Insufficient balance.');
             }
 
+            $order = $checkout['order'];
             $request->session()->forget('products');
 
             $viewData = [];

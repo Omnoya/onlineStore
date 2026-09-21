@@ -32,6 +32,7 @@ class CheckoutStaleBalanceTest extends TestCase
         $product->setDescription('Product used to test stale balance protection.');
         $product->setImage('stale-balance-test-product.png');
         $product->setPrice(150);
+        $product->setStock(10);
         $product->save();
 
         $this->actingAs($user);

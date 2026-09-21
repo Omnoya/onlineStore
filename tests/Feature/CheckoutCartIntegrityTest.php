@@ -31,6 +31,7 @@ class CheckoutCartIntegrityTest extends TestCase
         $product->setDescription('Product used to test cart integrity.');
         $product->setImage('available-test-product.png');
         $product->setPrice(150);
+        $product->setStock(10);
         $product->save();
 
         $missingProductId = $product->getId() + 1000;

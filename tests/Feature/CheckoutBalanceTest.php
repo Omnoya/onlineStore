@@ -31,6 +31,7 @@ class CheckoutBalanceTest extends TestCase
         $product->setDescription('Product priced above the customer balance.');
         $product->setImage('expensive-test-product.png');
         $product->setPrice(150);
+        $product->setStock(10);
         $product->save();
 
         $orderCountBeforeCheckout = Order::count();
@@ -64,6 +65,7 @@ class CheckoutBalanceTest extends TestCase
         $product->setDescription('Product priced within the customer balance.');
         $product->setImage('affordable-test-product.png');
         $product->setPrice(150);
+        $product->setStock(10);
         $product->save();
 
         $response = $this
