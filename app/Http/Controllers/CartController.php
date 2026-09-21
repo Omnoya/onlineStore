@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Product;
 use App\Models\Order;
 use App\Models\Item;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -79,15 +80,18 @@ class CartController extends Controller
             }
 
             $total = Product::sumPricesByQuantities($productsInCart, $productsInSession);
-            $user = Auth::user();
+            $userId = Auth::id();
 
-            if ($total > $user->getBalance()) {
-                return redirect()
-                    ->route('cart.index')
-                    ->with('error', 'Insufficient balance.');
-            }
+            $order = DB::transaction(function () use ($productsInCart, $productsInSession, $total, $userId) {
+                $user = User::query()
+                    ->whereKey($userId)
+                    ->lockForUpdate()
+                    ->firstOrFail();
 
-            $order = DB::transaction(function () use ($productsInCart, $productsInSession, $total, $user) {
+                if ($total > $user->getBalance()) {
+                    return null;
+                }
+
                 $order = new Order();
                 $order->setUserId($user->getId());
                 $order->setTotal(0);
@@ -111,6 +115,12 @@ class CartController extends Controller
 
                 return $order;
             });
+
+            if ($order === null) {
+                return redirect()
+                    ->route('cart.index')
+                    ->with('error', 'Insufficient balance.');
+            }
 
             $request->session()->forget('products');
 
