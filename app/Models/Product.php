@@ -17,6 +17,7 @@ class Product extends Model
      * $this->attributes['description'] - string - contains the product description
      * $this->attributes['image'] - string - contains the product image
      * $this->attributes['price'] - int - contains the product price
+     * $this->attributes['stock'] - int - contains the available product quantity
      * $this->attributes['created_at'] - timestamp - contains the product creation date
      * $this->attributes['updated_at'] - timestamp - contains the product update date
      * $this->items - Item[] - contains the associated items
@@ -38,6 +39,7 @@ class Product extends Model
             "name" => "required|max:255",
             "description" => "required",
             "price" => "required|numeric|gt:0",
+            "stock" => "required|integer|min:0",
             'image' => 'image',
         ]);
     }
@@ -101,6 +103,16 @@ class Product extends Model
     public function setPrice($price)
     {
         $this->attributes['price'] = $price;
+    }
+
+    public function getStock()
+    {
+        return $this->attributes['stock'];
+    }
+
+    public function setStock($stock)
+    {
+        $this->attributes['stock'] = $stock;
     }
 
     public function getCreatedAt()

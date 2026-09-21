@@ -44,7 +44,12 @@
           </div>
         </div>
         <div class="col">
-          &nbsp;
+          <div class="mb-3 row">
+            <label class="col-lg-2 col-md-6 col-sm-12 col-form-label">Stock:</label>
+            <div class="col-lg-10 col-md-6 col-sm-12">
+              <input name="stock" value="{{ old('stock') }}" type="number" min="0" step="1" class="form-control">
+            </div>
+          </div>
         </div>
       </div>
       <div class="mb-3">
@@ -66,6 +71,7 @@
         <tr>
           <th scope="col">ID</th>
           <th scope="col">Name</th>
+          <th scope="col">Stock</th>
           <th scope="col">Edit</th>
           <th scope="col">Delete</th>
         </tr>
@@ -75,6 +81,7 @@
         <tr>
           <td>{{ $product->getId() }}</td>
           <td>{{ $product->getName() }}</td>
+          <td>{{ $product->getStock() }}</td>
           {{-- <td>Edit</td> --}}
           {{--
           <td>
