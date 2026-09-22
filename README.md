@@ -1,66 +1,103 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# onlineStore
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+onlineStore is a Laravel e-commerce application developed as a backend portfolio project. It provides a public product catalogue, customer registration and login, a session-based cart, orders paid with a virtual account balance, and an administrator area for managing products and stock. It does not process real payments.
 
-## About Laravel
+## Features
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- Browse products and view their details and availability.
+- Register, sign in, and add available products to a cart.
+- Place an order using a virtual balance.
+- Create, edit, and delete products from the administrator area, including price, image, and stock.
+- Store uploaded product images on Laravel's public disk.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+Checkout uses an HTTP POST form with Laravel CSRF protection. The server validates quantities, checks that every requested product still exists, and checks current stock and the customer's balance. Within one database transaction it reloads and locks the user and products, calculates the total from current product prices, creates the order and items, reduces stock, and debits the balance.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+A server-generated UUID identifies each checkout intention. The UUID is included in the form, persisted on the order, and protected by a unique database constraint. A retry with the same token for the same authenticated user returns the existing order without a second debit or stock reduction. The cart and token are cleared after a successful checkout; failed business checks leave them available for correction or retry.
 
-## Learning Laravel
+These are implementation and automated-test guarantees, not a claim that concurrent checkouts have been verified against MySQL. Real row-lock behavior and concurrent retries still need dedicated MySQL tests.
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+## Stack
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+- PHP 8.2 and Laravel 9.52.6
+- MySQL 8 for the Docker application
+- SQLite in memory for the fast PHPUnit suite
+- PHP/Apache, Docker Compose, PHPUnit, and GitHub Actions
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains over 2000 video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+The current application and PHPUnit suite do not require a Node build.
 
-## Laravel Sponsors
+## Run locally with Docker
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the Laravel [Patreon page](https://patreon.com/taylorotwell).
+Prerequisites: Docker with the Compose plugin, a POSIX-compatible shell, and an available port 8080 on 127.0.0.1. Run these commands from the root of a fresh clone. The application port is bound to loopback; MySQL is not exposed on the host.
 
-### Premium Partners
+First, create a private local .env from .env.example. This command uses an ephemeral PHP 8.2 CLI container to generate a random Laravel APP_KEY and local MySQL password. It sets APP_URL to the exposed Docker address, prints neither generated value, and refuses to overwrite an existing .env.
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Cubet Techno Labs](https://cubettech.com)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[Many](https://www.many.co.uk)**
-- **[Webdock, Fast VPS Hosting](https://www.webdock.io/en)**
-- **[DevSquad](https://devsquad.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[OP.GG](https://op.gg)**
-- **[WebReinvent](https://webreinvent.com/?utm_source=laravel&utm_medium=github&utm_campaign=patreon-sponsors)**
-- **[Lendio](https://lendio.com)**
+~~~sh
+docker run --rm --user "$(id -u):$(id -g)" --mount "type=bind,source=$PWD,target=/workspace" --workdir /workspace php:8.2-cli php -r '
+  umask(0077);
+  $env = file_get_contents(".env.example");
+  if ($env === false) { throw new RuntimeException("Cannot read .env.example"); }
+  $values = [
+      "APP_KEY" => "base64:" . base64_encode(random_bytes(32)),
+      "DB_PASSWORD" => bin2hex(random_bytes(24)),
+      "APP_URL" => "http://127.0.0.1:8080",
+  ];
+  foreach ($values as $name => $value) {
+      $env = preg_replace("/^" . $name . "=.*$/m", $name . "=" . $value, $env, 1, $count);
+      if ($env === null || $count !== 1) {
+          throw new RuntimeException("Missing or invalid template entry: " . $name);
+      }
+  }
+  $file = @fopen(".env", "x");
+  if ($file === false) { throw new RuntimeException(".env already exists or cannot be created; it was not overwritten"); }
+  $written = fwrite($file, $env);
+  fclose($file);
+  if ($written !== strlen($env)) {
+      unlink(".env");
+      throw new RuntimeException("Could not write the complete .env file");
+  }
+'
+~~~
 
-## Contributing
+On a typical Linux host, the generated file has restrictive permissions. Review its non-secret settings locally if your environment differs. The example database name and username are for local development; the generated password replaces the demonstration value from .env.example. APP_KEY stays empty in the committed example.
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+Then check the Compose configuration, build and start the services, inspect their status, apply the migrations explicitly, and create the first administrator interactively:
 
-## Code of Conduct
+~~~sh
+docker compose config --quiet
+docker compose up -d --build
+docker compose ps
+docker compose exec -T app php artisan migrate --no-interaction
+docker compose exec app php artisan app:create-admin
+~~~
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+Do not use -T for the administrator command: it needs an interactive terminal. It prompts for Name and Email, then requests Password and Confirm password with hidden input. There is no default administrator password or credential in the repository.
 
-## Security Vulnerabilities
+Open [http://127.0.0.1:8080](http://127.0.0.1:8080). Compose passes .env values to the application through env_file; it does not mount .env in the container. Do not run php artisan key:generate in the container expecting it to update the host file. The entrypoint does not run migrations automatically.
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+## Tests and CI
 
-## License
+Run the complete fast suite in the application image:
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+~~~sh
+docker compose exec -T app php vendor/bin/phpunit --configuration phpunit.xml --do-not-cache-result
+~~~
+
+The PHPUnit configuration forces SQLite :memory: and a fixed, non-secret test-only APP_KEY. The tests do not need the local MySQL database. The latest validated local Docker run passed 44 tests with 225 assertions. Coverage now includes rejection of an injected administrator role during public registration, first-administrator creation, refusal of an existing email or an existing administrator, and password validation. SQLite exercises application and transactional invariants, but cannot establish MySQL row-lock behavior under concurrent requests.
+
+The versioned GitHub Actions workflow is configured to run PHPUnit on push and pull request with PHP 8.2 and SQLite in memory. It requires no GitHub secrets or MySQL service. The repository has not yet been published to a public remote, and the workflow has not yet been run on GitHub; no remote CI result is claimed.
+
+## Administrator access
+
+The /admin routes are protected by the administrator middleware. Public registration always creates customer accounts with role=client; a submitted role=admin value is ignored. After migrating a fresh installation, create the first administrator with the interactive app:create-admin command shown above. It refuses to create a second administrator and never promotes or changes an existing customer account, including one with the requested email. The administrator password is entered with hidden prompts; no default administrator credentials are provided.
+
+## Storage and local data
+
+Docker Compose uses a named uploads volume for storage/app/public and a separate named volume for MySQL data. The entrypoint prepares Laravel's writable runtime directories and creates the public/storage link to the upload volume. Uploaded images and database records survive ordinary container recreation. Do not use docker compose down -v as routine cleanup: it removes both named volumes and their data.
+
+## Known limitations and next steps
+
+- Verify actual concurrent checkouts, row locks, and unique-token races against MySQL 8; the SQLite suite cannot prove these properties.
+- Checkout uses a virtual balance only; there is no live payment or shipping integration.
+- Run and validate the GitHub Actions workflow after publishing the repository.
+
+Never commit .env or expose credentials. Enter the administrator password only through the interactive, hidden prompts; there is no default administrator password. MySQL has no host-published port, but its initialization logs may contain a generated root password: do not publish or request those logs as part of setup support.
