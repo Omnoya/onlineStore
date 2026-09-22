@@ -1,5 +1,7 @@
 # onlineStore
 
+[![Tests](https://github.com/Omnoya/onlineStore/actions/workflows/tests.yml/badge.svg)](https://github.com/Omnoya/onlineStore/actions/workflows/tests.yml)
+
 onlineStore is a Laravel e-commerce application developed as a backend portfolio project. It provides a public product catalogue, customer registration and login, a session-based cart, orders paid with a virtual account balance, and an administrator area for managing products and stock. It does not process real payments.
 
 ## Features
@@ -84,7 +86,7 @@ docker compose exec -T app php vendor/bin/phpunit --configuration phpunit.xml --
 
 The PHPUnit configuration forces SQLite :memory: and a fixed, non-secret test-only APP_KEY. The tests do not need the local MySQL database. The latest validated local Docker run passed 44 tests with 225 assertions. Coverage now includes rejection of an injected administrator role during public registration, first-administrator creation, refusal of an existing email or an existing administrator, and password validation. SQLite exercises application and transactional invariants, but cannot establish MySQL row-lock behavior under concurrent requests.
 
-The versioned GitHub Actions workflow is configured to run PHPUnit on push and pull request with PHP 8.2 and SQLite in memory. It requires no GitHub secrets or MySQL service. The repository has not yet been published to a public remote, and the workflow has not yet been run on GitHub; no remote CI result is claimed.
+The GitHub Actions Tests workflow runs PHPUnit on pushes and pull requests with PHP 8.2 and SQLite in memory. It requires no GitHub secrets or MySQL service. The workflow has passed successfully on GitHub.
 
 ## Administrator access
 
@@ -98,6 +100,5 @@ Docker Compose uses a named uploads volume for storage/app/public and a separate
 
 - Verify actual concurrent checkouts, row locks, and unique-token races against MySQL 8; the SQLite suite cannot prove these properties.
 - Checkout uses a virtual balance only; there is no live payment or shipping integration.
-- Run and validate the GitHub Actions workflow after publishing the repository.
 
 Never commit .env or expose credentials. Enter the administrator password only through the interactive, hidden prompts; there is no default administrator password. MySQL has no host-published port, but its initialization logs may contain a generated root password: do not publish or request those logs as part of setup support.
