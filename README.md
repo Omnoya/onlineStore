@@ -76,15 +76,79 @@ Do not use -T for the administrator command: it needs an interactive terminal. I
 
 Open [http://127.0.0.1:8080](http://127.0.0.1:8080). Compose passes .env values to the application through env_file; it does not mount .env in the container. Do not run php artisan key:generate in the container expecting it to update the host file. The entrypoint does not run migrations automatically.
 
-## Tests and CI
+## Inspect MySQL with Docker phpMyAdmin
 
-Run the complete fast suite in the application image:
+The application stores its local data in the Docker MySQL service `db`. To inspect that database in a browser, run a separate phpMyAdmin container on the **same Docker network**. This is distinct from any phpMyAdmin installation already running on the Ubuntu host.
+
+First, start the application and database if they are stopped:
 
 ~~~sh
-docker compose exec -T app php vendor/bin/phpunit --configuration phpunit.xml --do-not-cache-result
+docker compose up -d db app
+docker compose ps
 ~~~
 
-The PHPUnit configuration forces SQLite :memory: and a fixed, non-secret test-only APP_KEY. The tests do not need the local MySQL database. The latest validated local Docker run passed 44 tests with 225 assertions. Coverage now includes rejection of an injected administrator role during public registration, first-administrator creation, refusal of an existing email or an existing administrator, and password validation. SQLite exercises application and transactional invariants, but cannot establish MySQL row-lock behavior under concurrent requests.
+If the `onlinestore-phpmyadmin` container already exists and is stopped, restart it:
+
+~~~sh
+docker start onlinestore-phpmyadmin
+~~~
+
+Otherwise, create it using the network of the running database container:
+
+~~~sh
+DB_CONTAINER="$(docker compose ps -q db)"
+DB_NETWORK="$(docker inspect "$DB_CONTAINER" \
+  --format '{{range $name, $_ := .NetworkSettings.Networks}}{{println $name}}{{end}}' | head -n 1)"
+
+docker run -d \
+  --name onlinestore-phpmyadmin \
+  --network "$DB_NETWORK" \
+  -p 127.0.0.1:8081:80 \
+  -e PMA_HOST=db \
+  -e PMA_PORT=3306 \
+  phpmyadmin:5.2
+~~~
+
+Verify that phpMyAdmin is running and bound to the local port:
+
+~~~sh
+docker ps --filter name=onlinestore-phpmyadmin \
+  --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
+~~~
+
+Open [http://127.0.0.1:8081](http://127.0.0.1:8081). Sign in using the local `DB_USERNAME` and `DB_PASSWORD` values from your private `.env` file; do not share those values or use the MySQL root password. Select the database named by `DB_DATABASE`, then open a table such as `users`, `products`, `orders`, or `items` and choose **Browse** to inspect its records. The `users` table contains password hashes: do not publish screenshots or exports of that column.
+
+To stop this standalone phpMyAdmin container without stopping Laravel or MySQL:
+
+~~~sh
+docker stop onlinestore-phpmyadmin
+~~~
+
+Stopping this standalone phpMyAdmin container does not remove or modify any MySQL data. It is not managed by `docker compose stop`. Restart it later with `docker start onlinestore-phpmyadmin`. Do not use `docker compose down -v` for routine cleanup: that command removes the project's named data volumes.
+
+## Tests and CI
+
+Run the complete fast suite in a disposable, network-isolated container. Do not run PHPUnit inside the normal Compose `app` container: tests that reset the database must never have access to the application's MySQL data.
+
+~~~sh
+docker run --rm \
+  --network none \
+  --entrypoint php \
+  --mount "type=bind,source=$PWD,target=/var/www/html" \
+  --workdir /var/www/html \
+  -e APP_ENV=testing \
+  -e DB_CONNECTION=sqlite \
+  -e DB_DATABASE=:memory: \
+  -e DATABASE_URL= \
+  -e SESSION_DRIVER=array \
+  -e CACHE_DRIVER=array \
+  onlinestore-app \
+  vendor/bin/phpunit --configuration phpunit.xml --do-not-cache-result
+~~~
+
+This test container has no network connection and does not mount the MySQL data volume. The application running under Docker Compose continues to use MySQL independently.
+
+The PHPUnit configuration forces SQLite :memory: and a fixed, non-secret test-only APP_KEY. The tests do not need the local MySQL database. The latest validated local, network-isolated Docker run passed 47 tests with 240 assertions. Coverage now includes rejection of an injected administrator role during public registration, first-administrator creation, refusal of an existing email or an existing administrator, and password validation. SQLite exercises application and transactional invariants, but cannot establish MySQL row-lock behavior under concurrent requests.
 
 The GitHub Actions Tests workflow runs PHPUnit on pushes and pull requests with PHP 8.2 and SQLite in memory. It requires no GitHub secrets or MySQL service. The workflow has passed successfully on GitHub.
 
