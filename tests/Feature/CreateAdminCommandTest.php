@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class CreateAdminCommandTest extends TestCase
@@ -63,9 +64,7 @@ class CreateAdminCommandTest extends TestCase
         $this->assertSame('admin', $admin->fresh()->getRole());
     }
 
-    /**
-     * @dataProvider invalidAnswers
-     */
+    #[DataProvider('invalidAnswers')]
     public function test_it_rejects_invalid_answers(
         string $email,
         string $password,

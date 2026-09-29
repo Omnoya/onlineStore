@@ -6,6 +6,7 @@ use App\Models\Product;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class AdminProductStockTest extends TestCase
@@ -50,9 +51,7 @@ class AdminProductStockTest extends TestCase
         $this->assertSame(12, (int) $product->fresh()->getStock());
     }
 
-    /**
-     * @dataProvider invalidStocks
-     */
+    #[DataProvider('invalidStocks')]
     public function test_an_admin_cannot_create_a_product_with_invalid_stock(array $stockPayload): void
     {
         $admin = $this->createAdmin();

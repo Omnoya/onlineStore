@@ -4,15 +4,14 @@ namespace Tests\Feature;
 
 use App\Models\Product;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class CartValidationTest extends TestCase
 {
     use RefreshDatabase;
 
-    /**
-     * @dataProvider invalidQuantities
-     */
+    #[DataProvider('invalidQuantities')]
     public function test_an_invalid_quantity_cannot_be_added_to_the_cart(array $payload): void
     {
         $product = $this->createProduct();
@@ -61,9 +60,7 @@ class CartValidationTest extends TestCase
         $response->assertSessionMissing('checkout_token');
     }
 
-    /**
-     * @dataProvider unavailableStockCases
-     */
+    #[DataProvider('unavailableStockCases')]
     public function test_an_unavailable_quantity_is_rejected_without_modifying_the_cart(
         int $stock,
         int $quantity
