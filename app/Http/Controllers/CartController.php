@@ -216,7 +216,7 @@ class CartController extends Controller
                     'status' => 'success',
                     'order' => $order,
                 ];
-            });
+            }, 3);
 
             if ($checkout['status'] === 'missing_product') {
                 return redirect()

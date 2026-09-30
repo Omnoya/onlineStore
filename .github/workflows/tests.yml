@@ -15,10 +15,10 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Set up PHP 8.2 and Composer 2
+      - name: Set up PHP 8.4 and Composer 2
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.2'
+          php-version: '8.4'
           extensions: pdo_sqlite, sqlite3, mbstring, dom, simplexml, xml, xmlwriter, curl, zip, fileinfo
           tools: composer:v2
           coverage: none

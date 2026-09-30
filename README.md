@@ -12,7 +12,7 @@ onlineStore is a Laravel e-commerce application developed as a backend portfolio
 - Create, edit, and delete products from the administrator area, including price, image, and stock.
 - Store uploaded product images on Laravel's public disk.
 
-Checkout uses an HTTP POST form with Laravel CSRF protection. The server validates quantities, checks that every requested product still exists, and checks current stock and the customer's balance. Within one database transaction it reloads and locks the user and products, calculates the total from current product prices, creates the order and items, reduces stock, and debits the balance.
+Checkout uses an HTTP POST form with Laravel CSRF protection. The server validates quantities, checks that every requested product still exists, and checks current stock and the customer's balance. Within one database transaction it reloads and locks the user and products, calculates the total from current product prices, creates the order and items, reduces stock, and debits the balance. The transaction is configured for up to three attempts so Laravel can retry retryable concurrency failures such as MySQL deadlocks.
 
 A server-generated UUID identifies each checkout intention. The UUID is included in the form, persisted on the order, and protected by a unique database constraint. A retry with the same token for the same authenticated user returns the existing order without a second debit or stock reduction. The cart and token are cleared after a successful checkout; failed business checks leave them available for correction or retry.
 
@@ -20,7 +20,7 @@ These are implementation and automated-test guarantees, not a claim that concurr
 
 ## Stack
 
-- PHP 8.2 and Laravel 9.52.6
+- PHP 8.4 and Laravel 13.34.0
 - MySQL 8 for the Docker application
 - SQLite in memory for the fast PHPUnit suite
 - PHP/Apache, Docker Compose, PHPUnit, and GitHub Actions
@@ -31,10 +31,10 @@ The current application and PHPUnit suite do not require a Node build.
 
 Prerequisites: Docker with the Compose plugin, a POSIX-compatible shell, and an available port 8080 on 127.0.0.1. Run these commands from the root of a fresh clone. The application port is bound to loopback; MySQL is not exposed on the host.
 
-First, create a private local .env from .env.example. This command uses an ephemeral PHP 8.2 CLI container to generate a random Laravel APP_KEY and local MySQL password. It sets APP_URL to the exposed Docker address, prints neither generated value, and refuses to overwrite an existing .env.
+First, create a private local .env from .env.example. This command uses an ephemeral PHP 8.4 CLI container to generate a random Laravel APP_KEY and local MySQL password. It sets APP_URL to the exposed Docker address, prints neither generated value, and refuses to overwrite an existing .env.
 
 ~~~sh
-docker run --rm --user "$(id -u):$(id -g)" --mount "type=bind,source=$PWD,target=/workspace" --workdir /workspace php:8.2-cli php -r '
+docker run --rm --user "$(id -u):$(id -g)" --mount "type=bind,source=$PWD,target=/workspace" --workdir /workspace php:8.4-cli php -r '
   umask(0077);
   $env = file_get_contents(".env.example");
   if ($env === false) { throw new RuntimeException("Cannot read .env.example"); }
@@ -148,9 +148,9 @@ docker run --rm \
 
 This test container has no network connection and does not mount the MySQL data volume. The application running under Docker Compose continues to use MySQL independently.
 
-The PHPUnit configuration forces SQLite :memory: and a fixed, non-secret test-only APP_KEY. The tests do not need the local MySQL database. The latest validated local, network-isolated Docker run passed 47 tests with 240 assertions. Coverage now includes rejection of an injected administrator role during public registration, first-administrator creation, refusal of an existing email or an existing administrator, and password validation. SQLite exercises application and transactional invariants, but cannot establish MySQL row-lock behavior under concurrent requests.
+The PHPUnit configuration forces SQLite :memory: and a fixed, non-secret test-only APP_KEY. The tests do not need the local MySQL database. The latest validated local, network-isolated Docker run passed 47 tests with 240 assertions. Coverage now includes rejection of an injected administrator role during public registration, first-administrator creation, refusal of an existing email or an existing administrator, and password validation. SQLite exercises application and transactional invariants, but cannot establish MySQL row-lock behavior under concurrent requests. A separate isolated MySQL 8 concurrency test reproduced a real InnoDB deadlock with two simultaneous checkout requests competing for a product with stock 1. With the three-attempt transaction retry enabled, the validated run completed without an HTTP 500, produced exactly one order and one order item, reduced stock from 1 to 0, debited only the successful customer, and did not oversell. This validates the tested scenario, not every possible concurrency interleaving.
 
-The GitHub Actions Tests workflow runs PHPUnit on pushes and pull requests with PHP 8.2 and SQLite in memory. It requires no GitHub secrets or MySQL service. The workflow has passed successfully on GitHub.
+The GitHub Actions Tests workflow runs PHPUnit on pushes and pull requests with PHP 8.4 and SQLite in memory. It requires no GitHub secrets or MySQL service, and this configuration has passed successfully on GitHub.
 
 ## Administrator access
 

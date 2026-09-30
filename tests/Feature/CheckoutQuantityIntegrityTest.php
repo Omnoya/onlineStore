@@ -8,15 +8,14 @@ use App\Models\Product;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class CheckoutQuantityIntegrityTest extends TestCase
 {
     use RefreshDatabase;
 
-    /**
-     * @dataProvider invalidQuantities
-     */
+    #[DataProvider('invalidQuantities')]
     public function test_checkout_rejects_an_invalid_quantity_stored_in_the_session(mixed $quantity): void
     {
         $initialBalance = 200;
