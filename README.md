@@ -150,7 +150,7 @@ This test container has no network connection and does not mount the MySQL data 
 
 The PHPUnit configuration forces SQLite :memory: and a fixed, non-secret test-only APP_KEY. The tests do not need the local MySQL database. The latest validated local, network-isolated Docker run passed 47 tests with 240 assertions. Coverage now includes rejection of an injected administrator role during public registration, first-administrator creation, refusal of an existing email or an existing administrator, and password validation. SQLite exercises application and transactional invariants, but cannot establish MySQL row-lock behavior under concurrent requests. A separate isolated MySQL 8 concurrency test reproduced a real InnoDB deadlock with two simultaneous checkout requests competing for a product with stock 1. With the three-attempt transaction retry enabled, the validated run completed without an HTTP 500, produced exactly one order and one order item, reduced stock from 1 to 0, debited only the successful customer, and did not oversell. This validates the tested scenario, not every possible concurrency interleaving.
 
-The GitHub Actions Tests workflow is configured to run PHPUnit on pushes and pull requests with PHP 8.4 and SQLite in memory. It requires no GitHub secrets or MySQL service.
+The GitHub Actions Tests workflow runs PHPUnit on pushes and pull requests with PHP 8.4 and SQLite in memory. It requires no GitHub secrets or MySQL service, and this configuration has passed successfully on GitHub.
 
 ## Administrator access
 
